@@ -26,7 +26,10 @@ function LoginForm() {
     setError(null);
     if (method === "phone" && value.replace(/\D/g, "").length < 10) return setError("Enter a 10-digit mobile number.");
     setBusy(true);
-    const { error } = await supabase().auth.signInWithOtp(method === "phone" ? { phone: target } : { email: target });
+    const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const { error } = await supabase().auth.signInWithOtp(
+      method === "phone" ? { phone: target } : { email: target, options: { emailRedirectTo } },
+    );
     setBusy(false);
     if (error) {
       if (method === "phone" && /sms|provider|twilio/i.test(error.message))
@@ -54,7 +57,11 @@ function LoginForm() {
         <Logo tile size="md" />
         <h1 className="mt-5 text-2xl font-bold text-ova-900">{step === "enter" ? "Welcome to Ova Cure" : "Enter the code"}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          {step === "enter" ? "Sign in or create an account with a one-time code." : `We sent a 6-digit code to ${method === "phone" ? target : target}.`}
+          {step === "enter"
+            ? "Sign in or create an account with a one-time code."
+            : method === "phone"
+              ? `We sent a 6-digit code to ${target}.`
+              : `We emailed ${target}. Tap the sign-in link in that email (open it in this browser), or enter the code if the email shows one.`}
         </p>
       </div>
 
