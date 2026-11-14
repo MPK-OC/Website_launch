@@ -6,10 +6,13 @@ import { supabase, SUPABASE_CONFIGURED, track } from "@/lib/supabase";
 import { Logo } from "@/components/Logo";
 import { Alert, Button, Chip, Field, Input } from "@/components/ui";
 
+/** Mobile OTP needs a paid SMS provider (Twilio). Set NEXT_PUBLIC_PHONE_LOGIN=true to show it again. */
+const PHONE_LOGIN = process.env.NEXT_PUBLIC_PHONE_LOGIN === "true";
+
 function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
-  const [method, setMethod] = useState<"phone" | "email">("phone");
+  const [method, setMethod] = useState<"phone" | "email">(PHONE_LOGIN ? "phone" : "email");
   const [value, setValue] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"enter" | "verify">("enter");
@@ -61,10 +64,12 @@ function LoginForm() {
 
       {step === "enter" ? (
         <form onSubmit={send} className="space-y-4">
-          <div className="flex gap-2">
-            <Chip active={method === "phone"} onClick={() => { setMethod("phone"); setValue(""); }}><Phone className="mr-1 inline size-3.5" />Mobile</Chip>
-            <Chip active={method === "email"} onClick={() => { setMethod("email"); setValue(""); }}><Mail className="mr-1 inline size-3.5" />Email</Chip>
-          </div>
+          {PHONE_LOGIN && (
+            <div className="flex gap-2">
+              <Chip active={method === "phone"} onClick={() => { setMethod("phone"); setValue(""); }}><Phone className="mr-1 inline size-3.5" />Mobile</Chip>
+              <Chip active={method === "email"} onClick={() => { setMethod("email"); setValue(""); }}><Mail className="mr-1 inline size-3.5" />Email</Chip>
+            </div>
+          )}
           {method === "phone" ? (
             <Field label="Mobile number" hint="Testing: use 99999 00001 – 00005 with code 123456 (no SMS is sent).">
               <div className="flex">
@@ -73,7 +78,7 @@ function LoginForm() {
               </div>
             </Field>
           ) : (
-            <Field label="Email address" hint="Locally, emails land in Mailpit: http://127.0.0.1:58324">
+            <Field label="Email address" hint={process.env.NODE_ENV === "development" ? "Locally, emails land in Mailpit: http://127.0.0.1:58324" : "We'll email you a 6-digit code."}>
               <Input type="email" autoFocus required placeholder="you@example.com" value={value} onChange={(e) => setValue(e.target.value)} />
             </Field>
           )}
