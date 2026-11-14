@@ -8,9 +8,10 @@ const PROTECTED = [
 
 /** Refreshes the Supabase session cookie and sends signed-out visitors to /login. */
 export async function proxy(request: NextRequest) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return NextResponse.next();
+  if (!raw || !key) return NextResponse.next();
+  const url = new URL(raw).origin; // tolerate a pasted ".../rest/v1/" or trailing slash
 
   let response = NextResponse.next({ request });
   const sb = createServerClient(url, key, {
