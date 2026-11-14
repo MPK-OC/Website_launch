@@ -1,36 +1,100 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ova Cure — Web MVP
 
-## Getting Started
+Women's health platform: period tracker, online gynaecologist consultations, PCOD care plans,
+pregnancy planning and menopause care. Patient app, doctor portal and admin portal are all in this one
+Next.js app (role-based).
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router) · Tailwind CSS 4 · Supabase (Postgres + Auth + RLS) · Jitsi (free video)
+**Cost to run locally:** ₹0. No domain, SMS or payment provider needed.
+
+---
+
+## 1. Run it on your laptop (first time ≈ 10 min)
+
+Prerequisites: **Node 20+** and **Docker Desktop** (running).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd web
+npm install
+npm run db:start      # starts local Supabase in Docker (first run downloads images)
+npm run dev           # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env.local` already points to the local Supabase. If `db:start` prints different keys, copy
+`ANON_KEY` into `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| What | URL |
+|---|---|
+| Website | http://localhost:3000 |
+| Supabase Studio (see tables, run SQL) | http://127.0.0.1:58323 |
+| Mailpit (email OTPs land here) | http://127.0.0.1:58324 |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+> Ports are 583xx (not Supabase's default 543xx) because Windows/Hyper-V reserves 54xxx on this machine.
 
-## Learn More
+### Free OTP login (no SMS cost)
+Phone test numbers are configured in `supabase/config.toml` → `[auth.sms.test_otp]`:
 
-To learn more about Next.js, take a look at the following resources:
+| Mobile (enter without +91) | OTP | Suggested use |
+|---|---|---|
+| 99999 00001 – 99999 00005 | 123456 | testers / patients / doctors |
+| 99999 00009 | 123456 | admin |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Email OTP also works — the code arrives in Mailpit.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Make yourself admin
+Log in once with `9999900009`, then in Studio → SQL editor:
+```sql
+update profiles set role = 'admin' where phone = '919999900009';
+```
 
-## Deploy on Vercel
+### Try the complete loop
+1. **Patient** (`9999900001`): onboarding → log a day → Tracker → Consult → book a doctor.
+2. **Doctor** (`9999900002`): on onboarding click *"I'm a gynaecologist"* → submit application.
+3. **Admin** (`9999900009`): Admin → Doctor verification → Approve.
+4. **Doctor**: set Availability → patient books → doctor opens booking, writes notes + e-prescription → *Complete*.
+5. **Patient**: sees summary, prescription in Health records, rates the doctor.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The 3 seeded doctors are flagged *Demo* (no login attached) so the directory isn't empty.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Automated check
+`npm run test:e2e` runs 31 checks covering the patient, doctor and admin flows and the security rules
+(RLS). Afterwards, run `npm run db:reset` to clean up.
+
+---
+
+## 2. Testing with 4–5 people (still free)
+
+Local Supabase only works on your machine. To let friends test from their phones:
+
+1. Create a free project at supabase.com → SQL editor → paste and run `supabase/migrations/*.sql`, then `supabase/seed.sql`.
+2. Auth → Providers → Email: enable (free; OTP template must contain `{{ .Token }}`).
+   For phone OTP without paying for SMS, enable Phone with any provider and add **test phone numbers** with fixed OTPs.
+3. Push this folder to GitHub → import in **Vercel** (free) → set the 2 `NEXT_PUBLIC_SUPABASE_*` env vars.
+   You get a free `ova-cure.vercel.app` URL — no domain needed.
+
+---
+
+## 3. Project map
+
+```
+src/app/page.tsx                 Landing page (public)
+src/app/login, onboarding        OTP auth + 4-step onboarding with DPDP consent
+src/app/(app)/dashboard          Home: cycle ring, today's log, flags, upcoming consult
+src/app/(app)/tracker            Calendar, predictions, hormone phase, log, insights, PDF report
+src/app/(app)/consult            Doctor directory + booking (slots, pre-consult form, consent)
+src/app/(app)/appointments       Patient consult room: video link, chat, summary, Rx, rating
+src/app/(app)/pcod               Screening quiz, plans, daily diet+workout, check-ins, progress
+src/app/(app)/pregnancy          TTC mode: 14-day fertility view, checklist, journey
+src/app/(app)/menopause          Symptom scoring, trends, red-flag alerts, lifestyle
+src/app/(app)/learn, records     Articles; prescriptions/reports vault
+src/app/(app)/profile            Settings, consent log, data export, one-tap delete
+src/app/(app)/doctor/*           Doctor portal: apply, dashboard, consult workspace, availability
+src/app/(app)/admin/*            Admin: metrics, doctor verification, appointments, CMS, users
+src/lib/cycle.ts                 Prediction engine (rule-based; swap for ML later)
+src/lib/constants.ts             Symptoms, PCOD quiz, diet & fitness templates, checklists
+src/proxy.ts                     Session refresh + route protection
+supabase/migrations/             Full DB schema + RLS + triggers
+supabase/seed.sql                Plans, demo doctors, starter articles
+```
+
+See `../docs/` for the MVP plan, database design and workflow diagrams.

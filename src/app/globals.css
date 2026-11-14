@@ -1,26 +1,71 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Ova Cure brand tokens — purple from the original logo, softened with blush + plum */
+@theme {
+  --color-ova-50: #f8f3fe;
+  --color-ova-100: #efe5fc;
+  --color-ova-200: #dfcbf8;
+  --color-ova-300: #c7a5f0;
+  --color-ova-400: #ad7fe5;
+  --color-ova-500: #9b66d8;
+  --color-ova-600: #8350c4;
+  --color-ova-700: #6b3fa3;
+  --color-ova-800: #4f2d7a;
+  --color-ova-900: #2f1a4b;
+  --color-blush-50: #fff1f6;
+  --color-blush-100: #ffe1ec;
+  --color-blush-300: #f9a8c6;
+  --color-blush-400: #f47fa9;
+  --color-blush-500: #e85d90;
+  --color-cream: #fcfaff;
+  --color-ink: #24182f;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-brand: var(--font-brand-script), cursive;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.font-brand {
+  font-family: var(--font-brand);
+}
+
+/* Simple prose for articles */
+.prose-ova h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.5rem;
+  color: var(--color-ova-800);
+}
+.prose-ova p {
+  margin: 0.6rem 0;
+  line-height: 1.7;
+}
+.prose-ova ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.6rem 0;
+}
+.prose-ova li {
+  margin: 0.3rem 0;
+  line-height: 1.6;
+}
+.prose-ova strong {
+  color: var(--color-ova-900);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
 }
