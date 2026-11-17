@@ -57,20 +57,22 @@ update profiles set role = 'admin' where phone = '919999900009';
 The 3 seeded doctors are flagged *Demo* (no login attached) so the directory isn't empty.
 
 ### Automated check
-`npm run test:e2e` runs 31 checks covering the patient, doctor and admin flows and the security rules
+`npm run test:e2e` runs 30 checks covering the patient, doctor and admin flows and the security rules
 (RLS). Afterwards, run `npm run db:reset` to clean up.
 
 ---
 
 ## 2. Testing with 4–5 people (still free)
 
-Local Supabase only works on your machine. To let friends test from their phones:
+Local Supabase only works on your machine. To let friends test from their phones, follow
+**[docs/DEPLOY.md](docs/DEPLOY.md)** step by step: Supabase cloud project → email SMTP → OTP email
+templates → Vercel → test. It also has a troubleshooting table and the Twilio/MSG91 SMS steps for later.
 
-1. Create a free project at supabase.com → SQL editor → paste and run `supabase/migrations/*.sql`, then `supabase/seed.sql`.
-2. Auth → Providers → Email: enable (free; OTP template must contain `{{ .Token }}`).
-   For phone OTP without paying for SMS, enable Phone with any provider and add **test phone numbers** with fixed OTPs.
-3. Push this folder to GitHub → import in **Vercel** (free) → set the 2 `NEXT_PUBLIC_SUPABASE_*` env vars.
-   You get a free `ova-cure.vercel.app` URL — no domain needed.
+The short version:
+1. Supabase cloud project: run `supabase/migrations/*.sql`, then `supabase/seed.sql`.
+2. **Custom SMTP is required**: Supabase's built-in sender only emails your own team members. Gmail SMTP with an app password is free and needs no domain.
+3. Put `supabase/templates/otp.html` into **both** the *Confirm signup* and *Magic Link* templates (it contains `{{ .Token }}`).
+4. Vercel: import the repo and set `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Then set Supabase Site URL / Redirect URLs to the Vercel URL.
 
 ---
 

@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Mail, Phone } from "lucide-react";
 import { supabase, SUPABASE_CONFIGURED, track } from "@/lib/supabase";
@@ -19,10 +19,18 @@ function LoginForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
   const target = method === "phone" ? `+91${value.replace(/\D/g, "").slice(-10)}` : value.trim().toLowerCase();
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
+  async function send(e?: React.FormEvent) {
+    e?.preventDefault();
     setError(null);
     if (method === "phone" && value.replace(/\D/g, "").length < 10) return setError("Enter a 10-digit mobile number.");
     setBusy(true);
@@ -34,8 +42,10 @@ function LoginForm() {
     if (error) {
       if (method === "phone" && /sms|provider|twilio/i.test(error.message))
         return setError("Real SMS is not enabled in test mode. Use a test number 99999 00001 – 99999 00005 (OTP 123456), or sign in with Email.");
-      return setError(error.message);
+      return setError(friendlyAuthError(error.message));
     }
+    setCode("");
+    setCooldown(60);
     setStep("verify");
   }
 
@@ -46,7 +56,7 @@ function LoginForm() {
     const { error } = await supabase().auth.verifyOtp(
       method === "phone" ? { phone: target, token: code, type: "sms" } : { email: target, token: code, type: "email" },
     );
-    if (error) { setBusy(false); return setError(error.message); }
+    if (error) { setBusy(false); return setError(friendlyAuthError(error.message)); }
     track("login", { method });
     window.location.href = next; // full reload so proxy.ts sees the new session cookie
   }
@@ -60,8 +70,8 @@ function LoginForm() {
           {step === "enter"
             ? "Sign in or create an account with a one-time code."
             : method === "phone"
-              ? `We sent a 6-digit code to ${target}.`
-              : `We emailed ${target}. Tap the sign-in link in that email (open it in this browser), or enter the code if the email shows one.`}
+              ? `We sent a code to ${target}.`
+              : `We emailed a code to ${target}. Use the code from the newest email (check Spam too). If the email has a link instead, open it in this same browser.`}
         </p>
       </div>
 
@@ -85,7 +95,7 @@ function LoginForm() {
               </div>
             </Field>
           ) : (
-            <Field label="Email address" hint={process.env.NODE_ENV === "development" ? "Locally, emails land in Mailpit: http://127.0.0.1:58324" : "We'll email you a 6-digit code."}>
+            <Field label="Email address" hint={process.env.NODE_ENV === "development" ? "Locally, emails land in Mailpit: http://127.0.0.1:58324" : "We'll email you a one-time code."}>
               <Input type="email" autoFocus required placeholder="you@example.com" value={value} onChange={(e) => setValue(e.target.value)} />
             </Field>
           )}
@@ -95,15 +105,33 @@ function LoginForm() {
         </form>
       ) : (
         <form onSubmit={verify} className="space-y-4">
-          <Input inputMode="numeric" autoFocus maxLength={6} placeholder="••••••" value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} className="text-center text-2xl tracking-[0.5em]" />
+          {/* Supabase cloud projects can be set to 6–10 digit codes, so don't hard-code 6. Pasting "123 456" also works. */}
+          <Input inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={10} placeholder="Enter code" value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))} className="text-center text-2xl tracking-[0.4em]" />
           {error && <Alert tone="urgent">{error}</Alert>}
-          <Button type="submit" loading={busy} disabled={code.length !== 6} className="w-full">Verify & continue</Button>
+          <Button type="submit" loading={busy} disabled={code.length < 6} className="w-full">Verify & continue</Button>
+          <button type="button" disabled={cooldown > 0 || busy} onClick={() => send()}
+            className="w-full text-sm text-ova-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline">
+            {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+          </button>
           <button type="button" onClick={() => { setStep("enter"); setCode(""); }} className="w-full text-sm text-ova-600 hover:underline">Change {method === "phone" ? "number" : "email"}</button>
         </form>
       )}
     </div>
   );
+}
+
+/** Turn Supabase auth errors into something a tester can act on. */
+function friendlyAuthError(msg: string): string {
+  if (/rate limit|too many|security purposes/i.test(msg))
+    return "Too many codes requested. Supabase's free email sender allows only a few emails per hour — wait a bit, or set up custom SMTP (see README).";
+  if (/expired|invalid|not found/i.test(msg))
+    return "That code is wrong or has expired. Use the code from the newest email only (each “Send code” cancels the previous one), or tap Resend.";
+  if (/signups? not allowed|signup.*disabled/i.test(msg))
+    return "New sign-ups are turned off in Supabase (Authentication → Sign In / Providers → Allow new users to sign up).";
+  if (/error sending|smtp|email.*send/i.test(msg))
+    return "Supabase couldn't send the email. Check the SMTP settings in Supabase (Authentication → Emails → SMTP).";
+  return msg;
 }
 
 export default function LoginPage() {
